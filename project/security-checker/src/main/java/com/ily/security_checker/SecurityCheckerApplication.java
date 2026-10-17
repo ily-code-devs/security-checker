@@ -19,7 +19,7 @@ public class SecurityCheckerApplication {
 
 		System.out.println("Found " + issues.size() + " vulnerability issue(s):");
 		for (VulnerabilityIssue issue : issues) {
-			System.out.println(issue.name());
+			System.out.println(issue.name() + issue.severity() + issue.cvssScore());
 		}
 	}
 
