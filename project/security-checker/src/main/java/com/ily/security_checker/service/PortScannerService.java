@@ -13,6 +13,8 @@ import org.w3c.dom.NodeList;
 import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
@@ -42,15 +44,26 @@ public class PortScannerService {
     }
 
     public ScanResult scan(String target, String ports) {
+        try {
+            target = validateTarget(target);
+            ports = validatePorts(ports);
+        } catch (IllegalArgumentException e) {
+            return error(target, "Invalid scan parameters: " + e.getMessage());
+        }
+
         Path stdout = null;
         Path stderr = null;
         Process process = null;
         try {
             List<String> command = new ArrayList<>(List.of("nmap", "-sV", "-oX", "-"));
-            if (ports != null && !ports.isBlank()) {
+            if (target.contains(":")) {
+                command.add("-6");
+            }
+            if (ports != null) {
                 command.add("-p");
                 command.add(ports);
             }
+            command.add("--");
             command.add(target);
 
             // File redirection avoids pipe deadlocks without background reader threads.
@@ -87,6 +100,74 @@ public class PortScannerService {
             deleteTemporaryFile(stdout);
             deleteTemporaryFile(stderr);
         }
+    }
+
+    private static String validateTarget(String target) {
+        if (target == null || target.isBlank()) {
+            throw new IllegalArgumentException("Target is required");
+        }
+        target = target.strip();
+
+        if (target.contains(":")) {
+            // Only numeric literals reach getByName here; validation must not perform DNS lookups.
+            if (target.matches("[0-9a-fA-F:.]+")) {
+                try {
+                    InetAddress.getByName(target);
+                    return target;
+                } catch (UnknownHostException ignored) {
+                    // Report the same validation error for malformed IPv6 literals.
+                }
+            }
+            throw new IllegalArgumentException("Target must be a single IP address or DNS name; IPv6 addresses must be unbracketed and have no zone ID");
+        }
+
+        // Numeric ranges such as 192.168.1.1-10 also resemble DNS labels, but nmap expands them.
+        if (target.matches("[0-9.-]+")) {
+            String[] octets = target.split("\\.", -1);
+            if (octets.length == 4) {
+                boolean valid = true;
+                for (String octet : octets) {
+                    if (!octet.matches("0|[1-9][0-9]{0,2}") || Integer.parseInt(octet) > 255) {
+                        valid = false;
+                        break;
+                    }
+                }
+                if (valid) {
+                    return target;
+                }
+            }
+            throw new IllegalArgumentException("IPv4 address must contain four numbers between 0 and 255");
+        }
+
+        String hostname = target.endsWith(".") ? target.substring(0, target.length() - 1) : target;
+        if (hostname.isEmpty() || hostname.length() > 253) {
+            throw new IllegalArgumentException("DNS name must contain between 1 and 253 characters");
+        }
+        for (String label : hostname.split("\\.", -1)) {
+            if (!label.matches("[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?")) {
+                throw new IllegalArgumentException("Target must be a single IP address or DNS name, not a URL, option or range");
+            }
+        }
+        return target;
+    }
+
+    private static String validatePorts(String ports) {
+        if (ports == null || ports.isBlank()) {
+            return null;
+        }
+        ports = ports.strip();
+        for (String selection : ports.split(",", -1)) {
+            if (!selection.matches("[0-9]{1,5}(-[0-9]{1,5})?")) {
+                throw new IllegalArgumentException("Ports must be numbers or ranges separated by commas, e.g. 22,80,8000-8100");
+            }
+            String[] range = selection.split("-");
+            int first = Integer.parseInt(range[0]);
+            int last = range.length == 2 ? Integer.parseInt(range[1]) : first;
+            if (first < 1 || last > 65535 || first > last) {
+                throw new IllegalArgumentException("Ports must be between 1 and 65535, with ranges in ascending order");
+            }
+        }
+        return ports;
     }
 
     private ScanResult parseOutput(String target, Path output) throws Exception {
