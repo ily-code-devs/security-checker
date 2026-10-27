@@ -1,0 +1,23 @@
+# Gitignore for the Notes folder
+
+# Ignore all, catches bloat
+*
+
+# Un-ignore directory structures
+!*/
+!.gitignore
+
+# Un-ignore notes
+!*.md
+!*.adoc
+!*.txt
+!*.docx
+!*.pdf
+
+# Un-ignore possibly included media
+!*.png
+!*.jpg
+!*.svg
+
+# Ignore private notes
+**/private/
