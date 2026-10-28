@@ -24,6 +24,11 @@
     const severityFilter = document.getElementById('severityFilter');
     const exportJsonBtn = document.getElementById('exportJsonBtn');
 
+    // Theme Settings Popover
+    const settingsBtn = document.getElementById('settingsBtn');
+    const settingsMenu = document.getElementById('settingsMenu');
+    const themeOptions = document.querySelectorAll('.theme-option');
+
     // Modal elements
     const cpeModal = document.getElementById('cpeModal');
     const cpeModalBtn = document.getElementById('cpeModalBtn');
@@ -33,6 +38,40 @@
     const cpeModalResults = document.getElementById('cpeModalResults');
 
     let latestReport = null;
+
+    // Initialize saved theme (default: navy)
+    const savedTheme = localStorage.getItem('sc_theme') || 'navy';
+    applyTheme(savedTheme);
+
+    settingsBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isHidden = settingsMenu.classList.toggle('hidden');
+        settingsBtn.setAttribute('aria-expanded', String(!isHidden));
+    });
+
+    themeOptions.forEach(opt => {
+        opt.addEventListener('click', () => {
+            const theme = opt.getAttribute('data-theme-value') || 'navy';
+            applyTheme(theme);
+            localStorage.setItem('sc_theme', theme);
+            settingsMenu.classList.add('hidden');
+            settingsBtn.setAttribute('aria-expanded', 'false');
+        });
+    });
+
+    document.addEventListener('click', (e) => {
+        if (!settingsMenu.classList.contains('hidden') && !settingsMenu.contains(e.target) && e.target !== settingsBtn) {
+            settingsMenu.classList.add('hidden');
+            settingsBtn.setAttribute('aria-expanded', 'false');
+        }
+    });
+
+    function applyTheme(theme) {
+        document.documentElement.setAttribute('data-theme', theme);
+        themeOptions.forEach(opt => {
+            opt.classList.toggle('active', opt.getAttribute('data-theme-value') === theme);
+        });
+    }
 
     // Quick port presets
     document.querySelectorAll('.chip').forEach(btn => {
@@ -69,13 +108,13 @@
             latestReport = report;
 
             if (!response.ok || report.hostStatus === 'error') {
-                showError('Scan Error', report.message || 'An unexpected error occurred during the scan.');
+                showError('Scan Notice', report.message || 'An unexpected error occurred during the scan.');
                 return;
             }
 
             renderReport(report);
         } catch (err) {
-            showError('Network / Server Error', 'Could not reach the Security Checker backend: ' + err.message);
+            showError('Connection Error', 'Could not reach the Security Checker backend: ' + err.message);
         } finally {
             loadingSection.classList.add('hidden');
             scanSubmitBtn.disabled = false;
@@ -107,7 +146,6 @@
 
         const status = (report.hostStatus || 'unknown').toUpperCase();
         metricHostStatus.textContent = status;
-        metricHostStatus.className = 'metric-value ' + (status === 'UP' ? 'status-up' : 'status-down');
 
         metricOpenPorts.textContent = String(report.totalOpenPorts ?? 0);
         metricTotalVulns.textContent = String(report.totalVulnerabilities ?? 0);
@@ -118,7 +156,7 @@
         countLow.textContent = String(report.lowCount ?? 0);
 
         if (status === 'DOWN') {
-            showError('Host Unreachable', report.message || 'Target host appears to be down or blocking ping probes.');
+            showError('Host Unreachable', report.message || 'Target host appears to be down or blocking probes.');
         }
 
         renderPortsList(report.portReports || [], severityFilter.value);
@@ -129,7 +167,7 @@
 
         if (!portReports.length) {
             const emptyCard = document.createElement('div');
-            emptyCard.className = 'card';
+            emptyCard.className = 'glass-panel scan-card';
             emptyCard.innerHTML = '<p class="muted">No open ports were detected on this target for the selected port range.</p>';
             portsContainer.appendChild(emptyCard);
             return;
@@ -141,7 +179,7 @@
             const filteredVulns = allVulns.filter(v => passesSeverityFilter(v.severity, minSeverity));
 
             const card = document.createElement('div');
-            card.className = 'port-card';
+            card.className = 'glass-panel port-card';
 
             const header = document.createElement('div');
             header.className = 'port-card-header';
@@ -173,13 +211,13 @@
                 rightGroup.appendChild(cpeEl);
             } else {
                 const noCpe = document.createElement('span');
-                noCpe.className = 'badge badge-neutral';
-                noCpe.textContent = 'No CPE Identified';
+                noCpe.className = 'badge';
+                noCpe.textContent = 'No CPE';
                 rightGroup.appendChild(noCpe);
             }
 
             const vulnCountBadge = document.createElement('span');
-            vulnCountBadge.className = 'badge ' + (allVulns.length > 0 ? 'badge-critical' : 'badge-low');
+            vulnCountBadge.className = 'badge ' + (allVulns.length > 0 ? 'badge-emphasis' : '');
             vulnCountBadge.textContent = `${allVulns.length} CVE${allVulns.length === 1 ? '' : 's'}`;
             rightGroup.appendChild(vulnCountBadge);
 
@@ -201,7 +239,7 @@
                 const rec = document.createElement('div');
                 rec.className = 'recommendation-banner';
                 const swName = [p.product, p.version].filter(Boolean).join(' ') || p.serviceName || 'this service';
-                rec.innerHTML = `<strong>Remediation Recommendation:</strong> ${allVulns.length} known vulnerability record(s) found for <em>${escapeHtml(swName)}</em>. Review the CVE advisories below and update the software to a patched release.`;
+                rec.innerHTML = `<strong>Remediation Advisory:</strong> ${allVulns.length} known vulnerability record(s) matched <em>${escapeHtml(swName)}</em>. Review the CVE advisories below and update to a patched version.`;
                 body.appendChild(rec);
             }
 
@@ -270,7 +308,7 @@
 
         const arrow = document.createElement('span');
         arrow.className = 'dropdown-arrow';
-        arrow.textContent = '▼';
+        arrow.textContent = '▾';
 
         right.appendChild(sevBadge);
         right.appendChild(scoreSpan);
@@ -280,7 +318,6 @@
         summary.appendChild(right);
         details.appendChild(summary);
 
-        // Dropdown content
         const body = document.createElement('div');
         body.className = 'vuln-details-body';
 
@@ -303,7 +340,7 @@
         const cweBlock = document.createElement('div');
         cweBlock.className = 'meta-block';
         const cweTitle = document.createElement('strong');
-        cweTitle.textContent = 'CWE IDs (Weakness Types)';
+        cweTitle.textContent = 'CWE IDs';
         cweBlock.appendChild(cweTitle);
 
         const cweList = document.createElement('div');
@@ -380,7 +417,7 @@
             const res = await fetch(`/api/vulnerabilities?cpe=${encodeURIComponent(cpe)}`);
             const data = await res.json();
             if (!res.ok) {
-                cpeModalResults.innerHTML = `<p class="status-down">${escapeHtml(data.error || 'Failed to lookup CPE')}</p>`;
+                cpeModalResults.innerHTML = `<p class="muted">${escapeHtml(data.error || 'Failed to lookup CPE')}</p>`;
                 return;
             }
             cpeModalResults.innerHTML = '';
@@ -395,7 +432,7 @@
             data.forEach(v => list.appendChild(createVulnDropdown(v)));
             cpeModalResults.appendChild(list);
         } catch (err) {
-            cpeModalResults.innerHTML = `<p class="status-down">Request failed: ${escapeHtml(err.message)}</p>`;
+            cpeModalResults.innerHTML = `<p class="muted">Request failed: ${escapeHtml(err.message)}</p>`;
         }
     });
 
@@ -419,12 +456,9 @@
 
     function severityBadgeClass(sev) {
         switch ((sev || '').toUpperCase()) {
-            case 'CRITICAL': return 'badge-critical';
-            case 'HIGH': return 'badge-high';
-            case 'MEDIUM':
-            case 'MODERATE': return 'badge-medium';
-            case 'LOW': return 'badge-low';
-            default: return 'badge-unknown';
+            case 'CRITICAL': return 'badge-solid';
+            case 'HIGH': return 'badge-emphasis';
+            default: return '';
         }
     }
 
