@@ -1,7 +1,8 @@
 /* ==========================================================================
-   Monochrome Liquid Glass Design System
-   Default: Royal Navy Blue (#0f172a base + rich royal navy liquid glass)
-   Themes: navy (default), red, green, black
+   Frosted Liquid Glass Design System
+   Themes: Navy Blue (default), Crimson Red, Emerald Green, Obsidian Black
+   Refraction: js/liquid-glass.js adds a physically based SVG displacement
+   filter (Chromium). Other browsers fall back to frosted blur.
    ========================================================================== */
 
 :root,
@@ -12,7 +13,7 @@
     --orb-2: rgba(30, 58, 138, 0.28);
     --glass-bg: linear-gradient(135deg, rgba(30, 46, 86, 0.52) 0%, rgba(15, 23, 42, 0.68) 100%);
     --glass-bg-Subtle: rgba(15, 25, 50, 0.55);
-    --glass-header: rgba(12, 20, 40, 0.68);
+    --glass-header: rgba(12, 20, 40, 0.74);
     --glass-border: rgba(148, 184, 255, 0.16);
     --glass-border-strong: rgba(148, 184, 255, 0.34);
     --glass-highlight: inset 0 1px 0 0 rgba(255, 255, 255, 0.16), inset 0 0 24px rgba(59, 130, 246, 0.05);
@@ -35,7 +36,7 @@
     --orb-2: rgba(127, 29, 29, 0.25);
     --glass-bg: linear-gradient(135deg, rgba(72, 18, 28, 0.50) 0%, rgba(28, 8, 13, 0.70) 100%);
     --glass-bg-Subtle: rgba(38, 10, 16, 0.55);
-    --glass-header: rgba(24, 7, 11, 0.72);
+    --glass-header: rgba(24, 7, 11, 0.76);
     --glass-border: rgba(252, 165, 165, 0.16);
     --glass-border-strong: rgba(252, 165, 165, 0.34);
     --glass-highlight: inset 0 1px 0 0 rgba(255, 255, 255, 0.14), inset 0 0 24px rgba(220, 38, 38, 0.06);
@@ -58,7 +59,7 @@
     --orb-2: rgba(6, 78, 59, 0.25);
     --glass-bg: linear-gradient(135deg, rgba(16, 62, 46, 0.50) 0%, rgba(8, 28, 21, 0.70) 100%);
     --glass-bg-Subtle: rgba(10, 36, 27, 0.55);
-    --glass-header: rgba(6, 22, 16, 0.72);
+    --glass-header: rgba(6, 22, 16, 0.76);
     --glass-border: rgba(167, 243, 208, 0.16);
     --glass-border-strong: rgba(167, 243, 208, 0.34);
     --glass-highlight: inset 0 1px 0 0 rgba(255, 255, 255, 0.14), inset 0 0 24px rgba(16, 185, 129, 0.05);
@@ -81,7 +82,7 @@
     --orb-2: rgba(148, 163, 184, 0.06);
     --glass-bg: linear-gradient(135deg, rgba(32, 32, 38, 0.54) 0%, rgba(14, 14, 18, 0.74) 100%);
     --glass-bg-Subtle: rgba(20, 20, 25, 0.60);
-    --glass-header: rgba(10, 10, 13, 0.76);
+    --glass-header: rgba(10, 10, 13, 0.80);
     --glass-border: rgba(255, 255, 255, 0.13);
     --glass-border-strong: rgba(255, 255, 255, 0.28);
     --glass-highlight: inset 0 1px 0 0 rgba(255, 255, 255, 0.15), inset 0 0 24px rgba(255, 255, 255, 0.02);
@@ -103,8 +104,12 @@
     padding: 0;
 }
 
+button, input, select, textarea {
+    font-family: inherit;
+}
+
 body {
-    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Inter, Roboto, sans-serif;
+    font-family: "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     background-color: var(--bg-base);
     background-image:
         radial-gradient(circle at 18% 12%, var(--orb-1) 0%, transparent 48%),
@@ -137,22 +142,65 @@ body {
     padding: 0 1.5rem;
 }
 
-/* Liquid Glass Core Surfaces */
+/* Liquid Glass Core Surfaces
+   NOTE: the header glass lives on a pseudo-element so the header itself is not
+   a backdrop root. Otherwise the theme popover inside it could not see (or blur)
+   the page behind it. Same trick is used for the modal backdrop. */
 .glass-surface {
-    background: var(--glass-header);
-    backdrop-filter: blur(22px) saturate(165%);
-    -webkit-backdrop-filter: blur(22px) saturate(165%);
+    position: sticky;
+    background: transparent;
     border-bottom: 1px solid var(--glass-border);
     box-shadow: var(--glass-highlight);
 }
 
+.glass-surface::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: var(--glass-header);
+    backdrop-filter: blur(26px) saturate(180%);
+    -webkit-backdrop-filter: blur(26px) saturate(180%);
+}
+
 .glass-panel {
+    position: relative;
     background: var(--glass-bg);
-    backdrop-filter: blur(24px) saturate(170%);
-    -webkit-backdrop-filter: blur(24px) saturate(170%);
+    backdrop-filter: blur(18px) saturate(180%);
+    -webkit-backdrop-filter: blur(18px) saturate(180%);
     border: 1px solid var(--glass-border);
-    border-radius: 16px;
+    border-radius: 22px;
     box-shadow: var(--glass-shadow), var(--glass-highlight);
+}
+
+/* Specular rim: light catching the glass edge, brighter top-left and
+   bottom-right like a real bevelled pane. */
+.glass-panel::after,
+.btn-glass::after,
+.icon-glass-btn::after,
+.chip::after,
+.brand-mark::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    pointer-events: none;
+    background: linear-gradient(135deg,
+        rgba(255, 255, 255, 0.55) 0%,
+        rgba(255, 255, 255, 0.10) 28%,
+        rgba(255, 255, 255, 0) 55%,
+        rgba(255, 255, 255, 0.08) 78%,
+        rgba(255, 255, 255, 0.32) 100%);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+}
+
+.btn-glass, .icon-glass-btn, .chip, .brand-mark {
+    position: relative;
+    backdrop-filter: blur(14px) saturate(180%);
+    -webkit-backdrop-filter: blur(14px) saturate(180%);
 }
 
 /* Header */
@@ -181,7 +229,7 @@ body {
 .brand-mark {
     width: 40px;
     height: 40px;
-    border-radius: 11px;
+    border-radius: 13px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -216,7 +264,7 @@ body {
 .icon-glass-btn {
     width: 38px;
     height: 38px;
-    border-radius: 10px;
+    border-radius: 13px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -237,9 +285,12 @@ body {
     position: absolute;
     right: 0;
     top: calc(100% + 0.6rem);
-    width: 195px;
+    width: 205px;
     padding: 0.55rem;
-    border-radius: 14px;
+    border-radius: 22px;
+    background: var(--glass-header);
+    backdrop-filter: blur(30px) saturate(190%);
+    -webkit-backdrop-filter: blur(30px) saturate(190%);
     z-index: 80;
     display: flex;
     flex-direction: column;
@@ -261,7 +312,7 @@ body {
     gap: 0.65rem;
     width: 100%;
     padding: 0.5rem 0.65rem;
-    border-radius: 9px;
+    border-radius: 14px;
     border: 1px solid transparent;
     background: transparent;
     color: var(--text-secondary);
@@ -421,12 +472,16 @@ input[type="text"]:focus, .select-input:focus {
     justify-content: center;
     gap: 0.5rem;
     padding: 0.65rem 1.3rem;
-    border-radius: 10px;
+    border-radius: 14px;
     font-weight: 500;
     font-size: 0.88rem;
     cursor: pointer;
     border: 1px solid transparent;
     transition: all 0.2s ease;
+}
+
+.btn-glass:active:not(:disabled), .icon-glass-btn:active, .chip:active {
+    transform: scale(0.97);
 }
 
 .btn:disabled {
@@ -458,7 +513,7 @@ input[type="text"]:focus, .select-input:focus {
     background: var(--accent-soft);
 }
 
-/* Cohesive Monochromatic Badges (No rainbow palette) */
+/* Badges */
 .badge {
     font-size: 0.73rem;
     font-weight: 600;
@@ -482,6 +537,47 @@ input[type="text"]:focus, .select-input:focus {
     background: var(--accent);
     color: #ffffff;
     border: 1px solid rgba(255, 255, 255, 0.28);
+}
+
+
+/* Severity colors (fixed semantic palette, independent of the chosen theme)
+   low = green, medium = yellow, high = orange, critical = red */
+.sev-low      { --sev: #34d399; --sev-rgb: 52, 211, 153; }
+.sev-medium   { --sev: #facc15; --sev-rgb: 250, 204, 21; }
+.sev-high     { --sev: #fb923c; --sev-rgb: 251, 146, 60; }
+.sev-critical { --sev: #f43f5e; --sev-rgb: 244, 63, 94; }
+
+.badge.sev-low, .badge.sev-medium, .badge.sev-high, .badge.sev-critical {
+    color: var(--sev);
+    background: rgba(var(--sev-rgb), 0.16);
+    border: 1px solid rgba(var(--sev-rgb), 0.55);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 0 14px rgba(var(--sev-rgb), 0.18);
+}
+
+.badge.sev-critical {
+    background: rgba(var(--sev-rgb), 0.28);
+    color: #ffe4ea;
+    border-color: rgba(var(--sev-rgb), 0.8);
+}
+
+.pill.sev-low, .pill.sev-medium, .pill.sev-high, .pill.sev-critical {
+    background: rgba(var(--sev-rgb), 0.14);
+    border: 1px solid rgba(var(--sev-rgb), 0.5);
+    color: var(--sev);
+}
+
+.pill.sev-low strong, .pill.sev-medium strong, .pill.sev-high strong, .pill.sev-critical strong {
+    color: var(--sev);
+}
+
+/* Coloured accent bar on each vulnerability row */
+details.vuln-item.sev-low, details.vuln-item.sev-medium,
+details.vuln-item.sev-high, details.vuln-item.sev-critical {
+    box-shadow: inset 4px 0 0 var(--sev);
+}
+
+.cvss-score.sev-low, .cvss-score.sev-medium, .cvss-score.sev-high, .cvss-score.sev-critical {
+    color: var(--sev);
 }
 
 .hidden {
@@ -835,9 +931,7 @@ details.vuln-item[open] .dropdown-arrow {
 .modal-backdrop {
     position: fixed;
     inset: 0;
-    background-color: rgba(2, 6, 18, 0.72);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    background-color: rgba(2, 6, 18, 0.55);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -845,12 +939,24 @@ details.vuln-item[open] .dropdown-arrow {
     z-index: 100;
 }
 
+.modal-backdrop::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
 .modal-content {
+    background: var(--glass-header);
+    backdrop-filter: blur(30px) saturate(190%);
+    -webkit-backdrop-filter: blur(30px) saturate(190%);
     width: 100%;
     max-width: 760px;
     max-height: 86vh;
     overflow-y: auto;
     padding: 1.65rem;
+    border-radius: 26px;
 }
 
 .modal-header {
@@ -881,4 +987,38 @@ details.vuln-item[open] .dropdown-arrow {
 
 .cpe-input-row input {
     flex: 1;
+}
+
+footer {
+    text-align: center;
+    margin-left: auto;
+    margin-right: auto;
+    color: #8b9bb4;
+}
+
+/* Legal / use-at-own-risk warning banner (fixed amber, independent of theme) */
+.legal-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.85rem;
+    margin-bottom: 1.35rem;
+    padding: 1rem 1.25rem;
+    background: linear-gradient(135deg, rgba(250, 176, 5, 0.20), rgba(120, 70, 0, 0.30));
+    border-color: rgba(251, 191, 36, 0.55);
+}
+
+.legal-banner .legal-icon {
+    flex: none;
+    margin-top: 0.1rem;
+    color: #fbbf24;
+}
+
+.legal-banner p {
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: #fde9b8;
+}
+
+.legal-banner strong {
+    color: #fff3d1;
 }

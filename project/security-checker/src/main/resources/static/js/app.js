@@ -275,7 +275,7 @@
      */
     function createVulnDropdown(v) {
         const details = document.createElement('details');
-        details.className = 'vuln-item';
+        details.className = 'vuln-item ' + severityClass(v.severity);
 
         const summary = document.createElement('summary');
 
@@ -298,11 +298,11 @@
 
         const sev = (v.severity || 'UNKNOWN').toUpperCase();
         const sevBadge = document.createElement('span');
-        sevBadge.className = 'badge ' + severityBadgeClass(sev);
+        sevBadge.className = 'badge ' + severityClass(sev);
         sevBadge.textContent = sev;
 
         const scoreSpan = document.createElement('span');
-        scoreSpan.className = 'cvss-score';
+        scoreSpan.className = 'cvss-score ' + severityClass(sev);
         scoreSpan.title = 'CVSS Base Score';
         scoreSpan.textContent = v.cvssScore != null ? `CVSS ${Number(v.cvssScore).toFixed(1)}` : 'CVSS N/A';
 
@@ -454,10 +454,13 @@
         }
     }
 
-    function severityBadgeClass(sev) {
+    function severityClass(sev) {
         switch ((sev || '').toUpperCase()) {
-            case 'CRITICAL': return 'badge-solid';
-            case 'HIGH': return 'badge-emphasis';
+            case 'CRITICAL': return 'sev-critical';
+            case 'HIGH': return 'sev-high';
+            case 'MEDIUM':
+            case 'MODERATE': return 'sev-medium';
+            case 'LOW': return 'sev-low';
             default: return '';
         }
     }
